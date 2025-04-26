@@ -6,32 +6,75 @@ from src.adjust_dimension import adjust_dimension_main
 from src.new_room_placement import add_new_room_main
 import json
  
+# @api_view(['POST'])
+# def generate_floorplan_func(request):
+#     try:
+#         # Access the entire JSON data
+#         data = request.data
+       
+#         # Extract required fields
+#         template = data.get('template')  # For example: "1BHK_template5"
+#         flat_area = data.get('flatArea')
+#         flat_type = data.get('type')
+ 
+#         # Ensure required fields are provided
+#         if not template:
+#             return Response({'error': 'Template is required.'}, status=status.HTTP_400_BAD_REQUEST)
+#         if not flat_area:
+#             return Response({'error': 'Flat area is required.'}, status=status.HTTP_400_BAD_REQUEST)
+#         if not flat_type:
+#             return Response({'error': 'Flat type is required.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+#         # Extract the flat type (e.g., "1BHK") and template number (e.g., "template5") from template
+#         try:
+#             type_key, template_number = template.split('_')
+#         except ValueError:
+#             return Response({'error': 'Invalid template format.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+#         # Load the coordinates from the JSON file
+#         try:
+#             with open('src/converted_coordinates.json') as f:
+#                 coordinates_data = json.load(f)
+#         except FileNotFoundError:
+#             return Response({'error': 'Coordinates file not found.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#         except json.JSONDecodeError:
+#             return Response({'error': 'Error decoding JSON file.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ 
+#         # Extract the coordinates for the given flat type and template
+#         try:
+#             template_coords = coordinates_data[type_key][template_number]
+#         except KeyError:
+#             return Response({'error': 'Template not found.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+#         # Include the coordinates in the response data
+#         response_data = generate_floorplan_main(template_coords,flat_type,flat_area)
+ 
+#         return Response(response_data, status=status.HTTP_200_OK)
+#     except Exception as e:
+#         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['POST'])
 def generate_floorplan_func(request):
     try:
-        # Access the entire JSON data
         data = request.data
        
-        # Extract required fields
-        template = data.get('template')  # For example: "1BHK_template5"
-        flat_area = data.get('flatArea')
+        template = data.get('template')
+        flat_area = float(data.get('flatArea'))  # ✅ Make sure this is float
         flat_type = data.get('type')
- 
-        # Ensure required fields are provided
+
         if not template:
             return Response({'error': 'Template is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if not flat_area:
             return Response({'error': 'Flat area is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if not flat_type:
             return Response({'error': 'Flat type is required.'}, status=status.HTTP_400_BAD_REQUEST)
- 
-        # Extract the flat type (e.g., "1BHK") and template number (e.g., "template5") from template
+
         try:
             type_key, template_number = template.split('_')
         except ValueError:
             return Response({'error': 'Invalid template format.'}, status=status.HTTP_400_BAD_REQUEST)
- 
-        # Load the coordinates from the JSON file
+
         try:
             with open('src/converted_coordinates.json') as f:
                 coordinates_data = json.load(f)
@@ -39,19 +82,19 @@ def generate_floorplan_func(request):
             return Response({'error': 'Coordinates file not found.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except json.JSONDecodeError:
             return Response({'error': 'Error decoding JSON file.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
- 
-        # Extract the coordinates for the given flat type and template
+
         try:
             template_coords = coordinates_data[type_key][template_number]
         except KeyError:
             return Response({'error': 'Template not found.'}, status=status.HTTP_400_BAD_REQUEST)
- 
-        # Include the coordinates in the response data
-        response_data = generate_floorplan_main(template_coords,flat_type,flat_area)
- 
+
+        # ✅ Correct parameter order: (rooms, total_area, flat_type)
+        response_data = generate_floorplan_main(template_coords, flat_area, flat_type)
+
         return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
  
 @api_view(['POST'])
 def adjust_dimension_func(request):
