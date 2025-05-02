@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from src.test_area import generate_floorplan_main
 from src.adjust_dimension import adjust_dimension_main
-from src.new_room_placement import add_new_room_main
+from src.new_room_maain import generate_wall_segments
 import json
  
 # @api_view(['POST'])
@@ -158,7 +158,7 @@ def add_new_room_func(request):
         #     return Response({'error': 'freeze is required.'}, status=status.HTTP_400_BAD_REQUEST)
                
         # Include the coordinates in the response data
-        response_data = add_new_room_main(coordinates, roomName, roomWidth, roomHeight, adjacentRoom, direction)
+        response_data = generate_wall_segments(coordinates, roomName, roomWidth, roomHeight, adjacentRoom, direction)
  
         return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
