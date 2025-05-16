@@ -2,8 +2,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from src.test_area import generate_floorplan_main
-from src.adjust_dimension import adjust_dimension_main
-# from src.new_room_placement import add_new_room_main
+# from src.adjust_dimension import adjust_dimension_main
+from src.new_room_placement import generate_updated_floorplan
 import json
 import traceback
 
@@ -98,42 +98,46 @@ def generate_floorplan_func(request):
 #         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
  
  
-# @api_view(['POST'])
-# def add_new_room_func(request):
-#     try:
-#         # Access the entire JSON data
-#         data = request.data
- 
-#         # Extract required fields
-#         roomName = data.get('roomName')  # For example: "1BHK_template5"
-#         adjacentRoom = data.get('adjacentRoom')
-#         direction = data.get('direction')
-#         area = data.get('area')
-#         roomWidth = data.get('roomWidth')
-#         roomHeight = data.get('roomHeight')
-#         coordinates = data.get('coordinates')
-#         # freeze = data.get('coordinates')
-#         # Ensure required fields are provided
-#         if not roomName:
-#             return Response({'error': 'roomName is required.'}, status=status.HTTP_400_BAD_REQUEST)
-#         if not adjacentRoom:
-#             return Response({'error': 'adjacentRoom is required.'}, status=status.HTTP_400_BAD_REQUEST)
-#         if not direction:
-#             return Response({'error': 'direction is required.'}, status=status.HTTP_400_BAD_REQUEST)
-#         if not area:
-#             return Response({'error': 'area is required.'}, status=status.HTTP_400_BAD_REQUEST)
-#         if not roomWidth:
-#             return Response({'error': 'roomWidth is required.'}, status=status.HTTP_400_BAD_REQUEST)
-#         if not roomHeight:
-#             return Response({'error': 'roomHeight is required.'}, status=status.HTTP_400_BAD_REQUEST)
-#         if not coordinates:
-#             return Response({'error': 'coordinates is required.'}, status=status.HTTP_400_BAD_REQUEST)        
-#         # if not freeze:
-#         #     return Response({'error': 'freeze is required.'}, status=status.HTTP_400_BAD_REQUEST)
-               
-#         # Include the coordinates in the response data
-#         response_data = add_new_room_main(coordinates, roomName, roomWidth, roomHeight, adjacentRoom, direction)
- 
-#         return Response(response_data, status=status.HTTP_200_OK)
-#     except Exception as e:
-#         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+@api_view(['POST'])
+def add_new_room_func(request):
+    try:
+        data = request.data
+
+        # Extract required fields
+        roomName = data.get('roomName')
+        adjacentRoom = data.get('adjacentRoom')
+        direction = data.get('direction')
+        area = data.get('area')
+        roomWidth = data.get('roomWidth')
+        roomHeight = data.get('roomHeight')
+        rooms = data.get('rooms')  # ✅ renamed to 'rooms' for consistency
+
+        # Field validation
+        required_fields = {
+            'roomName': roomName,
+            'adjacentRoom': adjacentRoom,
+            'direction': direction,
+            'area': area,
+            'roomWidth': roomWidth,
+            'roomHeight': roomHeight,
+            'rooms': rooms
+        }
+
+        for field, value in required_fields.items():
+            if value in [None, ""]:
+                return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Call backend floorplan function
+        result = generate_updated_floorplan(
+            rooms=rooms,
+            new_room_name=roomName,
+            length=roomWidth,
+            width=roomHeight,
+            existing_room=adjacentRoom,
+            direction=direction
+        )
+
+        return Response(result, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

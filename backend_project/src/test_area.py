@@ -11,7 +11,7 @@ from shapely.ops import polygonize
 
 from shapely.ops import unary_union
 from matplotlib.patches import Polygon as MplPolygon
-from new_room_placement import *
+from src.new_room_placement import *
 
 
 
@@ -28,6 +28,8 @@ constraints = {
     'Passage': {'min_width': 3.3, 'min_height': 3.3},
     'Bathroom': {'min_width': 3.3, 'min_height': 3.3},
     'Washroom': {'min_width': 3.3, 'min_height': 3.3},
+    'Balcony': {'min_width': 3.3, 'min_height': 3.3},
+
     # 'Irregular Room': {'min_width': 3, 'min_height': 3}  # ✅ Add this
 }
 
@@ -83,24 +85,40 @@ passage_constraints = {
 #     return dimensions
 
 # # Function to recalculate room coordinates based on scaled dimensions, maintaining original connections
-# # def recalculate_coordinates(rooms, dimensions):
-# #     new_rooms = {}
-# #     for room, coordinates in rooms.items():
-# #         scaled_width = dimensions[room]['scaled_width']
-# #         scaled_height = dimensions[room]['scaled_height']
-# #         x_scale = scaled_width / dimensions[room]['width']
-# #         y_scale = scaled_height / dimensions[room]['height']
-# #         new_coordinates = []
-# #         for coord in coordinates:
-# #             x1, y1 = coord[0]
-# #             x2, y2 = coord[1]
-# #             x1_new = round(x1 * x_scale, 2)
-# #             y1_new = round(y1 * y_scale, 2)
-# #             x2_new = round(x2 * x_scale, 2)
-# #             y2_new = round(y2 * y_scale, 2)
-# #             new_coordinates.append([[x1_new, y1_new], [x2_new, y2_new]])
-# #         new_rooms[room] = new_coordinates
-# #     return new_rooms
+def recalculate_coordinates(rooms, dimensions):
+    new_rooms = {}
+    
+    # Global reference origin (top-left of all rooms)
+    all_points = [pt for walls in rooms.values() for wall in walls if isinstance(wall, list) for pt in wall]
+    global_min_x = min(p[0] for p in all_points)
+    global_min_y = min(p[1] for p in all_points)
+
+    for room, coordinates in rooms.items():
+        new_coordinates = []
+        original_width = dimensions[room]['width']
+        original_height = dimensions[room]['height']
+        scaled_width = dimensions[room]['scaled_width']
+        scaled_height = dimensions[room]['scaled_height']
+
+        x_scale = scaled_width / original_width
+        y_scale = scaled_height / original_height
+
+        for wall in coordinates:
+            if isinstance(wall, dict):  # preserve metadata
+                new_coordinates.append(wall)
+                continue
+
+            scaled_wall = []
+            for x, y in wall:
+                new_x = truncate_to_two_decimals((x - global_min_x) * x_scale + global_min_x)
+                new_y = truncate_to_two_decimals((y - global_min_y) * y_scale + global_min_y)
+                scaled_wall.append([new_x, new_y])
+            new_coordinates.append(scaled_wall)
+
+        new_rooms[room] = new_coordinates
+
+    return new_rooms
+
 # def truncate_to_two_decimals(value):
 #     return int(value * 100) / 100.0
 
@@ -1643,20 +1661,22 @@ def dynamic_area_calculater(rooms, target_total_area):
     adjust_updated_rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
     adjust_updated_rooms = replace_near_values(adjust_updated_rooms, threshold=0.09)
     metadata = make_roomdata(adjust_updated_rooms)
-    new_rooms_cw = find_and_display_common_walls(new_room1)
-    updated_rooms_cw = find_and_display_common_walls(adjust_updated_rooms)
-    broken_connections = analyze_wall_changes(new_rooms_cw, updated_rooms_cw)
-    shift_analysis_dict = make_shift_analysis_dict(broken_connections, adjust_updated_rooms, new_room1)
-    stichFloorplan(shift_analysis_dict, metadata, overlap=False)
-    Final_updated_rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
-    Final_updated_rooms = replace_near_values(Final_updated_rooms, threshold=0.09)
-    metadata3 = make_roomdata(Final_updated_rooms)
+    # new_rooms_cw = find_and_display_common_walls(new_room1)
+    # updated_rooms_cw = find_and_display_common_walls(adjust_updated_rooms)
+    # broken_connections = analyze_wall_changes(new_rooms_cw, updated_rooms_cw)
+    # shift_analysis_dict = make_shift_analysis_dict(broken_connections, adjust_updated_rooms, new_room1)
+    # stichFloorplan(shift_analysis_dict, metadata, overlap=False)
+    # Final_updated_rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
+    # Final_updated_rooms = replace_near_values(Final_updated_rooms, threshold=0.09)
+    # metadata3 = make_roomdata(Final_updated_rooms)
 
-    adjust_metadata = adjust_extra_area(metadata3, constraints, fixed_room_dimensions, target_total_area)
-    adjust_updated_rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in adjust_metadata.items()}
-    adjust_updated_rooms = replace_near_values(adjust_updated_rooms, threshold=0.09)
-    adjust_metadata = make_roomdata(adjust_updated_rooms)
-    return adjust_updated_rooms,adjust_metadata
+    # adjust_metadata = adjust_extra_area(metadata3, constraints, fixed_room_dimensions, target_total_area)
+    # adjust_updated_rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in adjust_metadata.items()}
+    # adjust_updated_rooms = replace_near_values(adjust_updated_rooms, threshold=0.09)
+    # adjust_metadata = make_roomdata(adjust_updated_rooms)
+    print("metadata", metadata)
+    return adjust_updated_rooms,metadata
+    # return new_room1,metadata
 
 
 def convert_all_rooms_to_walls(rooms: dict, thickness=30) -> dict:
@@ -1719,6 +1739,7 @@ def generate_floorplan_main(coords, type_of_flat, total_flat_area):
         Final_updated_rooms, metadata = dynamic_area_calculater(rooms, target_total_area)
 
         area_difference = calculate_total_area(metadata) - target_total_area
+        print(calculate_total_area(metadata))
         print('Area Difference:', area_difference)
 
         if abs(area_difference) > 10:
@@ -1761,109 +1782,249 @@ def generate_floorplan_main(coords, type_of_flat, total_flat_area):
 
 def main():
     # Define test room layout with one regular and one irregular room
-    test_rooms =  {
-      "Master Bedroom": [
-        [
-          [30, 30],
-          [39.04, 30]
-        ],
-        [
-          [39.04, 30],
-          [39.04, 17.61]
-        ],
-        [
-          [39.04, 17.61],
-          [30, 17.61]
-        ],
-        [
-          [30, 17.61],
-          [30, 30]
-        ]
-      ],
-      "En suite Washroom": [
-        [
-          [34.97, 36.99],
-          [39.26, 36.99]
-        ],
-        [
-          [39.26, 36.99],
-          [39.26, 30.0]
-        ],
-        [
-          [39.26, 30.0],
-          [34.97, 30.0]
-        ],
-        [
-          [34.97, 30.0],
-          [34.97, 36.99]
-        ]
-      ],
+
+    test_rooms  = {
+    "Master Bedroom": [
+        [[0, 11], [9, 11]],
+        [[9, 11], [9, 16]],
+        [[9, 16], [0, 16]],
+        [[0, 16], [0, 11]]
+    ],
+    "Kitchen": [
+        [[9, 11], [16.4, 11]],
+        [[16.4, 11], [16.4, 18.4]],
+        [[16.4, 18.4], [9, 18.4]],
+        [[9, 18.4], [9, 11]]
+    ],
+    "Living Room": [
+        [[16.4, 11], [25.4, 11]],
+        [[25.4, 11], [25.4, 26]],
+        [[25.4, 26], [6, 26]],
+        [[6, 26], [6, 18.4]],
+        [[6, 18.4], [9, 18.4]],
+        [[9, 18.4], [9, 23]],
+        [[9, 23], [16.4, 23]],
+        [[16.4, 23], [16.4, 11]]
+    ],
+    "Common Washroom": [
+        [[0, 18.4], [4, 18.4]],
+        [[4, 18.4], [4, 21.4]],
+        [[4, 21.4], [0, 21.4]],
+        [[0, 21.4], [0, 18.4]]
+    ],
+    "Bathroom": [
+        [[0, 21.4], [4, 21.4]],
+        [[4, 21.4], [4, 26]],
+        [[4, 26], [0, 26]],
+        [[0, 26], [0, 21.4]]
+    ]
+}
+
+
+
+    # test_rooms ={
+    #   "Master Bedroom": [
+    #     [
+    #       [30, 30],
+    #       [39.04, 30]
+    #     ],
+    #     [
+    #       [39.04, 30],
+    #       [39.04, 17.61]
+    #     ],
+    #     [
+    #       [39.04, 17.61],
+    #       [30, 17.61]
+    #     ],
+    #     [
+    #       [30, 17.61],
+    #       [30, 30]
+    #     ]
+    #   ],
+    #   "En suite Washroom": [
+    #     [
+    #       [34.97, 36.99],
+    #       [39.26, 36.99]
+    #     ],
+    #     [
+    #       [39.26, 36.99],
+    #       [39.26, 30.0]
+    #     ],
+    #     [
+    #       [39.26, 30.0],
+    #       [34.97, 30.0]
+    #     ],
+    #     [
+    #       [34.97, 30.0],
+    #       [34.97, 36.99]
+    #     ]
+    #   ],
+    #   "Kitchen": [
+    #     [
+    #       [39.04, 25.07],
+    #       [45.9, 25.07]
+    #     ],
+    #     [
+    #       [45.9, 25.07],
+    #       [45.9, 16.68]
+    #     ],
+    #     [
+    #       [45.9, 16.68],
+    #       [39.04, 16.68]
+    #     ],
+    #     [
+    #       [39.04, 16.68],
+    #       [39.04, 25.07]
+    #     ]
+    #   ],
+    #   "Common Washroom": [
+    #     [
+    #       [39.26, 34.52],
+    #       [45.9, 34.52]
+    #     ],
+    #     [
+    #       [45.9, 34.52],
+    #       [45.9, 30.0]
+    #     ],
+    #     [
+    #       [45.9, 30.0],
+    #       [39.26, 30.0]
+    #     ],
+    #     [
+    #       [39.26, 30.0],
+    #       [39.26, 34.52]
+    #     ]
+    #   ],
+    #   "Living Room": [
+    #     [
+    #       [45.9, 34.52],
+    #       [54.98, 34.52]
+    #     ],
+    #     [
+    #       [54.98, 34.52],
+    #       [54.98, 19.47]
+    #     ],
+    #     [
+    #       [54.98, 19.47],
+    #       [45.9, 19.47]
+    #     ],
+    #     [
+    #       [45.9, 19.47],
+    #       [45.9, 34.52]
+    #     ]
+    #   ],
+    #   "Passage": [
+    #     [
+    #       [39.04, 30],
+    #       [45.9, 30]
+    #     ],
+    #     [
+    #       [45.9, 30],
+    #       [45.9, 25.07]
+    #     ],
+    #     [
+    #       [45.9, 25.07],
+    #       [39.04, 25.07]
+    #     ],
+    #     [
+    #       [39.04, 25.07],
+    #       [39.04, 30]
+    #     ]
+    #   ]
+    # }
+#     test_rooms =  {
+#       "Master Bedroom": [
+#         [
+#           [30, 30],
+#           [39.04, 30]
+#         ],
+#         [
+#           [39.04, 30],
+#           [39.04, 17.61]
+#         ],
+#         [
+#           [39.04, 17.61],
+#           [30, 17.61]
+#         ],
+#         [
+#           [30, 17.61],
+#           [30, 30]
+#         ]
+#       ],
+#       "En suite Washroom": [
+#         [
+#           [34.97, 36.99],
+#           [39.26, 36.99]
+#         ],
+#         [
+#           [39.26, 36.99],
+#           [39.26, 30.0]
+#         ],
+#         [
+#           [39.26, 30.0],
+#           [34.97, 30.0]
+#         ],
+#         [
+#           [34.97, 30.0],
+#           [34.97, 36.99]
+#         ]
+#       ],
    
-      "Kitchen": [
-        [
-          [39.04, 25.07],
-          [45.9, 25.07]
-        ],
-        [
-          [45.9, 25.07],
-          [45.9, 16.68]
-        ],
-        [
-          [45.9, 16.68],
-          [39.04, 16.68]
-        ],
-        [
-          [39.04, 16.68],
-          [39.04, 25.07]
-        ]
-      ],
-      "Common Washroom": [
-        [
-          [39.26, 34.52],
-          [45.9, 34.52]
-        ],
-        [
-          [45.9, 34.52],
-          [45.9, 30.0]
-        ],
-        [
-          [45.9, 30.0],
-          [39.26, 30.0]
-        ],
-        [
-          [39.26, 30.0],
-          [39.26, 34.52]
-        ]
-      ],
-      "Living Room": [
-  [[45.9, 34.52], [54.98, 34.52]],
-  [[54.98, 34.52], [54.98, 27]],    
-  [[54.98, 27], [50.5, 27]],          
-  [[50.5, 27], [50.5, 19.47]],        
-  [[45.9, 19.47], [45.9, 34.52]]
-],
-      "Passage": [
-        [
-          [39.04, 30],
-          [45.9, 30]
-        ],
-        [
-          [45.9, 30],
-          [45.9, 25.07]
-        ],
-        [
-          [45.9, 25.07],
-          [39.04, 25.07]
-        ],
-        [
-          [39.04, 25.07],
-          [39.04, 30]
-        ]
-      ]
-    }
+#       "Kitchen": [
+#         [
+#           [39.04, 25.07],
+#           [45.9, 25.07]
+#         ],
+#         [
+#           [45.9, 25.07],
+#           [45.9, 16.68]
+#         ],
+#         [
+#           [45.9, 16.68],
+#           [39.04, 16.68]
+#         ],
+#         [
+#           [39.04, 16.68],
+#           [39.04, 25.07]
+#         ]
+#       ],
+#       "Common Washroom": [
+#     [[45.9, 34.52], [49.0, 34.52]],
+#     [[49.0, 34.52], [49.0, 32.52]],
+#     [[46.9, 32.52], [46.9, 30.0]],
+#     [[45.9, 30.0], [45.9, 34.52]],
+#     [[49.0, 32.52], [46.9, 32.52]],
+#     [[46.9, 30.0], [45.9, 30.0]]
+# ],
+#       "Living Room": [
+#   [[45.9, 34.52], [54.98, 34.52]],
+#   [[54.98, 34.52], [54.98, 27]],    
+#   [[54.98, 27], [50.5, 27]],          
+#   [[50.5, 27], [50.5, 19.47]],        
+#   [[45.9, 19.47], [45.9, 34.52]]
+# ],
+#       "Passage": [
+#         [
+#           [39.04, 30],
+#           [45.9, 30]
+#         ],
+#         [
+#           [45.9, 30],
+#           [45.9, 25.07]
+#         ],
+#         [
+#           [45.9, 25.07],
+#           [39.04, 25.07]
+#         ],
+#         [
+#           [39.04, 25.07],
+#           [39.04, 30]
+#         ]
+#       ]
+#     }
 
 
-    total_area = 600 # Example target area
+    total_area = 500 # Example target area
     flat_type = "1BHK"
 
     # wall_segments = generate_floorplan_main(test_rooms, flat_type, total_area)

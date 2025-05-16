@@ -106,16 +106,35 @@ def scale_dimensions(dimensions, new_total_area):
 #             new_coordinates.append([[x1_new, y1_new], [x2_new, y2_new]])
 #         new_rooms[room] = new_coordinates
 #     return new_rooms
+# from shapely.geometry import Polygon, LineString
+from shapely.affinity import scale
+
 def recalculate_coordinates(rooms, dimensions):
     new_rooms = {}
     for room, coordinates in rooms.items():
+        if len(coordinates) > 4:  # Handles all irregular-shaped rooms
+            lines = [LineString(seg) for seg in coordinates if isinstance(seg, list) and len(seg) == 2]
+            all_points = [pt for line in lines for pt in line.coords]
+            polygon = Polygon(all_points)
+            centroid = polygon.centroid
+
+            x_scale = dimensions[room]['scaled_width'] / dimensions[room]['width']
+            y_scale = dimensions[room]['scaled_height'] / dimensions[room]['height']
+
+            scaled_polygon = scale(polygon, xfact=x_scale, yfact=y_scale, origin=centroid)
+            coords = list(scaled_polygon.exterior.coords)
+            new_segments = [[[coords[i][0], coords[i][1]], [coords[i+1][0], coords[i+1][1]]] for i in range(len(coords) - 1)]
+            new_rooms[room] = new_segments
+            continue
+
+        # Default for rectangular rooms
         scaled_width = dimensions[room]['scaled_width']
         scaled_height = dimensions[room]['scaled_height']
         x_scale = scaled_width / dimensions[room]['width']
         y_scale = scaled_height / dimensions[room]['height']
         new_coordinates = []
         for coord in coordinates:
-            if not isinstance(coord, list) or not isinstance(coord[0], list):  # Skip if not a wall
+            if not isinstance(coord, list) or not isinstance(coord[0], list):
                 new_coordinates.append(coord)
                 continue
             x1, y1 = coord[0]
@@ -850,7 +869,7 @@ def update_shifts_based_on_wall_availability(unshifted_room, shifted_room, direc
                 if not possible_shift:
                     print(f"No available directions to shift walls for room pair ({unshifted_room}, {shifted_room}) and their adjacent rooms.")
 
-def stichFloorplan(shift_analysis_dict, metadata, overlap):
+def stichFloorplan(shift_analysis_dict, metadata, overlap,rooms):
     updated_walls = set()
     for room_pair, shift_details in shift_analysis_dict.items():
         unshifted_room = shift_details['Unshifted Room']
@@ -2573,7 +2592,9 @@ def generate_updated_floorplan(
         )
 
         metadata = make_roomdata(updated_rooms)
-        stichFloorplan(shift_analysis_dict, metadata, overlap=False)
+        # stichFloorplan(shift_analysis_dict, metadata, overlap=False)
+        stichFloorplan(shift_analysis_dict, metadata, overlap=False, rooms=updated_rooms)
+
 
         final_rooms = {
             room: [data['coordinates'] for wall_id, data in walls.items()]
@@ -2595,167 +2616,167 @@ def generate_updated_floorplan(
 
 
 
-def main():
-    global rooms, metadata
-    rooms = {
+# def main():
+#     global rooms, metadata
+#     rooms = {
       
-      "Master Bedroom": [
-        [
-          [30, 30],
-          [39.04, 30]
-        ],
-        [
-          [39.04, 30],
-          [39.04, 17.61]
-        ],
-        [
-          [39.04, 17.61],
-          [30, 17.61]
-        ],
-        [
-          [30, 17.61],
-          [30, 30]
-        ]
-      ],
-      "En suite Washroom": [
-        [
-          [34.97, 36.99],
-          [39.26, 36.99]
-        ],
-        [
-          [39.26, 36.99],
-          [39.26, 30.0]
-        ],
-        [
-          [39.26, 30.0],
-          [34.97, 30.0]
-        ],
-        [
-          [34.97, 30.0],
-          [34.97, 36.99]
-        ]
-      ],
+#       "Master Bedroom": [
+#         [
+#           [30, 30],
+#           [39.04, 30]
+#         ],
+#         [
+#           [39.04, 30],
+#           [39.04, 17.61]
+#         ],
+#         [
+#           [39.04, 17.61],
+#           [30, 17.61]
+#         ],
+#         [
+#           [30, 17.61],
+#           [30, 30]
+#         ]
+#       ],
+#       "En suite Washroom": [
+#         [
+#           [34.97, 36.99],
+#           [39.26, 36.99]
+#         ],
+#         [
+#           [39.26, 36.99],
+#           [39.26, 30.0]
+#         ],
+#         [
+#           [39.26, 30.0],
+#           [34.97, 30.0]
+#         ],
+#         [
+#           [34.97, 30.0],
+#           [34.97, 36.99]
+#         ]
+#       ],
    
-      "Kitchen": [
-        [
-          [39.04, 25.07],
-          [45.9, 25.07]
-        ],
-        [
-          [45.9, 25.07],
-          [45.9, 16.68]
-        ],
-        [
-          [45.9, 16.68],
-          [39.04, 16.68]
-        ],
-        [
-          [39.04, 16.68],
-          [39.04, 25.07]
-        ]
-      ],
-      "Common Washroom": [
-        [
-          [39.26, 34.52],
-          [45.9, 34.52]
-        ],
-        [
-          [45.9, 34.52],
-          [45.9, 30.0]
-        ],
-        [
-          [45.9, 30.0],
-          [39.26, 30.0]
-        ],
-        [
-          [39.26, 30.0],
-          [39.26, 34.52]
-        ]
-      ],
-      "Living Room": [
-  [[45.9, 34.52], [54.98, 34.52]],
-  [[54.98, 34.52], [54.98, 27]],    
-  [[54.98, 27], [50.5, 27]],          
-  [[50.5, 27], [50.5, 19.47]],        
-  [[45.9, 19.47], [45.9, 34.52]]
-],
-      "Passage": [
-        [
-          [39.04, 30],
-          [45.9, 30]
-        ],
-        [
-          [45.9, 30],
-          [45.9, 25.07]
-        ],
-        [
-          [45.9, 25.07],
-          [39.04, 25.07]
-        ],
-        [
-          [39.04, 25.07],
-          [39.04, 30]
-        ]
-      ]
-    }
-
-
-# {
-# 'Master Bedroom': [[[30, 30], [39.04, 30]],
-#   [[39.04, 30], [39.04, 17.61]],
-#   [[39.04, 17.61], [30, 17.61]],
-#   [[30, 17.61], [30, 30]]],
-# 'En suite Washroom': [[[34.97, 36.99], [39.26, 36.99]],
-#   [[39.26, 36.99], [39.26, 30.0]],
-#   [[39.26, 30.0], [34.97, 30.0]],
-#   [[34.97, 30.0], [34.97, 36.99]]],
-# 'Kitchen': [[[39.04, 25.07], [45.9, 25.07]],
-#   [[45.9, 25.07], [45.9, 16.68]],
-#   [[45.9, 16.68], [39.04, 16.68]],
-#   [[39.04, 16.68], [39.04, 25.07]]],
-# 'Common Washroom': [[[39.26, 34.52], [45.9, 34.52]],
-#   [[45.9, 34.52], [45.9, 30.0]],
-#   [[45.9, 30.0], [39.26, 30.0]],
-#   [[39.26, 30.0], [39.26, 34.52]]],
-# 'Living Room': [[[45.9, 34.52], [54.98, 34.52]],
-#   [[54.98, 34.52], [54.98, 19.47]],
-#   [[54.98, 19.47], [45.9, 19.47]],
-#   [[45.9, 19.47], [45.9, 34.52]]],
-# 'Passage': [[[39.04, 30], [45.9, 30]],
-#   [[45.9, 30], [45.9, 25.07]],
-#   [[45.9, 25.07], [39.04, 25.07]],
-#   [[39.04, 25.07], [39.04, 30]]]
+#       "Kitchen": [
+#         [
+#           [39.04, 25.07],
+#           [45.9, 25.07]
+#         ],
+#         [
+#           [45.9, 25.07],
+#           [45.9, 16.68]
+#         ],
+#         [
+#           [45.9, 16.68],
+#           [39.04, 16.68]
+#         ],
+#         [
+#           [39.04, 16.68],
+#           [39.04, 25.07]
+#         ]
+#       ],
+#       "Common Washroom": [
+#         [
+#           [39.26, 34.52],
+#           [45.9, 34.52]
+#         ],
+#         [
+#           [45.9, 34.52],
+#           [45.9, 30.0]
+#         ],
+#         [
+#           [45.9, 30.0],
+#           [39.26, 30.0]
+#         ],
+#         [
+#           [39.26, 30.0],
+#           [39.26, 34.52]
+#         ]
+#       ],
+#       "Living Room": [
+#   [[45.9, 34.52], [54.98, 34.52]],
+#   [[54.98, 34.52], [54.98, 27]],    
+#   [[54.98, 27], [50.5, 27]],          
+#   [[50.5, 27], [50.5, 19.47]],        
+#   [[45.9, 19.47], [45.9, 34.52]]
+# ],
+#       "Passage": [
+#         [
+#           [39.04, 30],
+#           [45.9, 30]
+#         ],
+#         [
+#           [45.9, 30],
+#           [45.9, 25.07]
+#         ],
+#         [
+#           [45.9, 25.07],
+#           [39.04, 25.07]
+#         ],
+#         [
+#           [39.04, 25.07],
+#           [39.04, 30]
+#         ]
+#       ]
 #     }
+
+
+# # {
+# # 'Master Bedroom': [[[30, 30], [39.04, 30]],
+# #   [[39.04, 30], [39.04, 17.61]],
+# #   [[39.04, 17.61], [30, 17.61]],
+# #   [[30, 17.61], [30, 30]]],
+# # 'En suite Washroom': [[[34.97, 36.99], [39.26, 36.99]],
+# #   [[39.26, 36.99], [39.26, 30.0]],
+# #   [[39.26, 30.0], [34.97, 30.0]],
+# #   [[34.97, 30.0], [34.97, 36.99]]],
+# # 'Kitchen': [[[39.04, 25.07], [45.9, 25.07]],
+# #   [[45.9, 25.07], [45.9, 16.68]],
+# #   [[45.9, 16.68], [39.04, 16.68]],
+# #   [[39.04, 16.68], [39.04, 25.07]]],
+# # 'Common Washroom': [[[39.26, 34.52], [45.9, 34.52]],
+# #   [[45.9, 34.52], [45.9, 30.0]],
+# #   [[45.9, 30.0], [39.26, 30.0]],
+# #   [[39.26, 30.0], [39.26, 34.52]]],
+# # 'Living Room': [[[45.9, 34.52], [54.98, 34.52]],
+# #   [[54.98, 34.52], [54.98, 19.47]],
+# #   [[54.98, 19.47], [45.9, 19.47]],
+# #   [[45.9, 19.47], [45.9, 34.52]]],
+# # 'Passage': [[[39.04, 30], [45.9, 30]],
+# #   [[45.9, 30], [45.9, 25.07]],
+# #   [[45.9, 25.07], [39.04, 25.07]],
+# #   [[39.04, 25.07], [39.04, 30]]]
+# #     }
  
-    plot_floor_plan(rooms=rooms,title="Floor Plan")
-    new_room_name = "Study"
-    length = 5
-    width = 7
-    existing_room = "Living Room"
-    direction = "Left"
+#     plot_floor_plan(rooms=rooms,title="Floor Plan")
+#     new_room_name = "Study"
+#     length = 5
+#     width = 7
+#     existing_room = "Living Room"
+#     direction = "Left"
 
-    # Call the processing function
-    result = generate_updated_floorplan(
-        rooms=rooms,
-        new_room_name=new_room_name,
-        length=length,
-        width=width,
-        existing_room=existing_room,
-        direction=direction
-    )
+#     # Call the processing function
+#     result = generate_updated_floorplan(
+#         rooms=rooms,
+#         new_room_name=new_room_name,
+#         length=length,
+#         width=width,
+#         existing_room=existing_room,
+#         direction=direction
+#     )
 
-    # Print or visualize result
-    print("Updated Room Data:")
-    for room, walls in result["updated_rooms"].items():
-        print(room, ":", walls)
+#     # Print or visualize result
+#     print("Updated Room Data:")
+#     for room, walls in result["updated_rooms"].items():
+#         print(room, ":", walls)
 
-    print("\nConverted Wall Segments:")
-    for wall in result["converted_walls"]:
-        print(wall)
+#     print("\nConverted Wall Segments:")
+#     for wall in result["converted_walls"]:
+#         print(wall)
 
-    # Optional: visualize final result
-    plot_floor_plan(result["updated_rooms"], title="Final Floor Plan")
+#     # Optional: visualize final result
+#     plot_floor_plan(result["updated_rooms"], title="Final Floor Plan")
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
