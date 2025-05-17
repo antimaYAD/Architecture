@@ -12,6 +12,7 @@ from shapely.ops import polygonize
 from shapely.ops import unary_union
 from matplotlib.patches import Polygon as MplPolygon
 from src.new_room_placement import *
+# from new_room_placement import *
 
 
 
@@ -1725,8 +1726,7 @@ def convert_all_rooms_to_walls(rooms: dict, thickness=30) -> dict:
 
 
 def generate_floorplan_main(coords, type_of_flat, total_flat_area):
-    global rooms, metadata
-
+    
     # ✅ Step 0: Extract doors before any processing
   
 

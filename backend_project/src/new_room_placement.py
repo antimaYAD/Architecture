@@ -9,7 +9,7 @@ import sys
 from shapely.geometry import LineString, MultiLineString, Polygon, box
 from matplotlib.patches import Arc
 from shapely.geometry.polygon import orient
-
+from shapely.affinity import scale
 
 
 # Updated dictionary with only minimum dimensions specified except for specific rooms
@@ -87,27 +87,6 @@ def scale_dimensions(dimensions, new_total_area):
         dim['scaled_area'] = truncate_to_two_decimals(dim['scaled_width'] * dim['scaled_height'])
     return dimensions
 
-
-# def recalculate_coordinates(rooms, dimensions):
-#     new_rooms = {}
-#     for room, coordinates in rooms.items():
-#         scaled_width = dimensions[room]['scaled_width']
-#         scaled_height = dimensions[room]['scaled_height']
-#         x_scale = scaled_width / dimensions[room]['width']
-#         y_scale = scaled_height / dimensions[room]['height']
-#         new_coordinates = []
-#         for coord in coordinates:
-#             x1, y1 = coord[0]
-#             x2, y2 = coord[1]
-#             x1_new = truncate_to_two_decimals(x1 * x_scale)
-#             y1_new = truncate_to_two_decimals(y1 * y_scale)
-#             x2_new = truncate_to_two_decimals(x2 * x_scale)
-#             y2_new = truncate_to_two_decimals(y2 * y_scale)
-#             new_coordinates.append([[x1_new, y1_new], [x2_new, y2_new]])
-#         new_rooms[room] = new_coordinates
-#     return new_rooms
-# from shapely.geometry import Polygon, LineString
-from shapely.affinity import scale
 
 def recalculate_coordinates(rooms, dimensions):
     new_rooms = {}
@@ -231,27 +210,8 @@ def plot_floor_plan(rooms, doors=None, windows=None, ducts=None, title='Floor Pl
 
         
 
-# def plot_floor_plan(rooms, title='Scaled Floor Plan'):
-    # fig, ax = plt.subplots()
-    # for room, coordinates in rooms.items():
-    #     for line in coordinates:
-    #         (x1, y1), (x2, y2) = line
-    #         ax.plot([x1, x2], [y1, y2])
-    #     # Add room label
-    #     centroid_x = sum([line[0][0] for line in coordinates]) / 4
-    #     centroid_y = sum([line[0][1] for line in coordinates]) / 4
-    #     ax.text(centroid_x, centroid_y, room, ha='center', va='center', fontsize=7)
-    # ax.set_aspect('equal')
-    # plt.xlabel('X Coordinate')
-    # plt.ylabel('Y Coordinate')
-    # plt.title(title)
-    # plt.grid(True)
-    # plt.show()
-
 
 # Helper functions
-# def calculate_wall_length(start, end):
-#     return truncate_to_two_decimals(((end[0] - start[0])**2 + (end[1] - start[1])**2)**0.5)
 
 def calculate_wall_length(start, end):
     return truncate_to_two_decimals(LineString([start, end]).length)
@@ -265,11 +225,8 @@ def determine_wall_type(start, end):
     else:
         return 'diagonal'
 
-# def calculate_area(coordinates):
-#     x_coords = [point[0] for point in coordinates]
-#     y_coords = [point[1] for point in coordinates]
-#     return truncate_to_two_decimals(0.5 * abs(sum(x * y for x, y in zip(x_coords, y_coords[1:] + y_coords[:1])) - sum(y * x for x, y in zip(x_coords[1:] + x_coords[:1], y_coords))))
 
+# Calculate the Area
 def calculate_area(coordinates):
     polygon = Polygon([pt for wall in coordinates for pt in wall])
     return truncate_to_two_decimals(polygon.area)
@@ -429,47 +386,10 @@ def find_adjacent_rooms(room_name, rooms):
     return adjacent_rooms
 
 
-# def find_adjacent_rooms(room_name, rooms):
-#     rooms=replace_near_values(rooms, threshold=0.3)
-#     metadata = make_roomdata(rooms)
-#     adjacent_rooms = {'North': [], 'South': [], 'East': [], 'West': []}
-#     # Retrieve walls of the specified room
-#     target_room_walls = rooms[room_name]
 
-#     # Iterate over each wall in the target room
-#     for target_wall in target_room_walls:
-#         t_x1, t_y1 = target_wall[0]
-#         t_x2, t_y2 = target_wall[1]
-
-#         for other_room, other_walls in rooms.items():
-#             if other_room == room_name:
-#                 continue  # Skip the same room
-
-#             for other_wall in other_walls:
-#                 o_x1, o_y1 = other_wall[0]
-#                 o_x2, o_y2 = other_wall[1]
-
-#                 # Check for overlapping or touching lines
-#                 if is_overlapping_or_touching([target_wall[0], target_wall[1]], [other_wall[0], other_wall[1]]):
-#                     # Determine direction based on position relative to target room
-#                     if t_x1 == t_x2 == o_x1 == o_x2:  # Vertical alignment
-#                         if t_y1 < t_y2:
-#                             adjacent_rooms['West'].append(other_room)
-#                         else:
-#                             adjacent_rooms['East'].append(other_room)
-#                     elif t_y1 == t_y2 == o_y1 == o_y2:  # Horizontal alignment
-#                         if t_x1 < t_x2:
-#                             adjacent_rooms['North'].append(other_room)
-#                         else:
-#                             adjacent_rooms['South'].append(other_room)
-
-#     # Remove duplicates and clean up the data
-#     for direction in adjacent_rooms:
-#         adjacent_rooms[direction] = list(set(adjacent_rooms[direction]))
-
-#     return adjacent_rooms
 
 def update_wall_length_by_dimension(room, dimension, new_length, metadata):
+    rooms.clear()
     rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
     wall_type = 'vertical' if dimension == 'height' else 'horizontal'
     possible_directions = ['North', 'South'] if wall_type == 'vertical' else ['East', 'West']
@@ -669,108 +589,79 @@ def calculate_dimensions_from_metadata(room_data):
     return truncate_to_two_decimals(max(xs) - min(xs)), truncate_to_two_decimals(max(ys) - min(ys))
 
 
-# def calculate_dimensions_from_metadata(room_data):
-#     x_coords = []
-#     y_coords = []
-#     for wall_id, wall in room_data.items():
-#         coords = wall.get('coordinates', [])
-#         for coord in coords:
-#             x_coords.append(coord[0])
-#             y_coords.append(coord[1])
-#     width = max(x_coords) - min(x_coords) if x_coords else 0
-#     height = max(y_coords) - min(y_coords) if y_coords else 0
-#     return truncate_to_two_decimals(width), truncate_to_two_decimals(height)
-
-
-def update_wall_length_by_dimension2(room, direction, delta, updated_walls, metadata):
+def update_wall_length_by_dimension3(room, direction, delta, metadata, rooms):
+    print('Adjusting room:', room)
     room_data = metadata.get(room, {})
+    direction_to_use = direction
+
+    # Get current width and height
     current_width, current_height = calculate_dimensions_from_metadata(room_data)
-    if room in ['En suite Washroom', 'Common Washroom','Bathroom','Washroom']:
+
+    # Constraint checks for certain rooms
+    if room in ['En suite Washroom', 'Common Washroom', 'Bathroom', 'Washroom']:
         max_width = constraints1[room]['max_width']
         max_height = constraints1[room]['max_height']
-        if direction in ['North', 'South']:
-            if current_height + abs(delta) > max_height:
-                return
-        elif direction in ['East', 'West']:
-            if current_width + abs(delta) > max_width:
-                return
-    wall_type = 'vertical' if direction in ['North', 'South'] else 'horizontal'
-    wall_numbers_to_update = [wall_number for wall_number, data in metadata[room].items() if data['wall_type'] == wall_type]
-    for wall_number in wall_numbers_to_update:
-        for wall_id in metadata[room]:
-            if (wall_id == wall_number or wall_number in metadata[room][wall_id]['parallel_walls']) and wall_id not in updated_walls:
-                updated_walls.add(wall_id)
-                data = metadata[room][wall_id]
-                start, end = data['coordinates']
-                original_start, original_end = start.copy(), end.copy()
-                adjust_coordinates_by_direction(start, end, direction, delta)
-                metadata[room][wall_id]['coordinates'] = (start.copy(), end.copy())
-                metadata[room][wall_id]['wall_length'] = truncate_to_two_decimals(calculate_wall_length(start, end))
-                update_adjacent_walls(metadata, room, wall_id, original_start, original_end, start, end)
+        if direction in ['North', 'South'] and current_height + abs(delta) > max_height:
+            return
+        elif direction in ['East', 'West'] and current_width + abs(delta) > max_width:
+            return
 
-def update_wall_length_by_dimension3(room, direction, delta, metadata):
-    print('llll',room)
-    room_data = metadata.get(room, {})
-    direction_to_use=direction
-    current_width, current_height = calculate_dimensions_from_metadata(room_data)
-    if room in ['En suite Washroom', 'Common Washroom','Bathroom','Washroom']:
-        max_width = constraints1[room]['max_width']
-        max_height = constraints1[room]['max_height']
-        if direction in ['North', 'South']:
-            if current_height + abs(delta) > max_height:
-                return
-        elif direction in ['East', 'West']:
-            if current_width + abs(delta) > max_width:
-                return
+    # Identify walls to update
     wall_type = 'vertical' if direction in ['North', 'South'] else 'horizontal'
-    wall_numbers_to_update = [wall_number for wall_number, data in metadata[room].items() if data['wall_type'] == wall_type]
-    for wall_id in wall_numbers_to_update:
+    wall_ids_to_update = [wall_id for wall_id, data in metadata[room].items()
+                          if data['wall_type'] == wall_type]
+
+    for wall_id in wall_ids_to_update:
         data = metadata[room][wall_id]
         start, end = data['coordinates']
-        original_start, original_end = start.copy(), end.copy()  # Save original coordinates
-        current_length = calculate_wall_length(start, end)
-        delta = delta
+        original_start, original_end = start.copy(), end.copy()
+
+        # Apply delta shift based on direction
         if direction_to_use == 'North':
             if start[1] > end[1]:
-                start[1] = truncate_to_two_decimals(start[1] + delta)
+                start[1] += delta
             else:
-                end[1] = truncate_to_two_decimals(end[1] + delta)
+                end[1] += delta
         elif direction_to_use == 'South':
             if start[1] < end[1]:
-                start[1] = truncate_to_two_decimals(start[1] - delta)
+                start[1] -= delta
             else:
-                end[1] = truncate_to_two_decimals(end[1] - delta)
+                end[1] -= delta
         elif direction_to_use == 'East':
             if start[0] < end[0]:
-                end[0] = truncate_to_two_decimals(end[0] + delta)
+                end[0] += delta
             else:
-                start[0] = truncate_to_two_decimals(start[0] + delta)
+                start[0] += delta
         elif direction_to_use == 'West':
             if start[0] < end[0]:
-                start[0] = truncate_to_two_decimals(start[0] - delta)
+                start[0] -= delta
             else:
-                end[0] = truncate_to_two_decimals(end[0] - delta)
+                end[0] -= delta
 
-        metadata[room][wall_id]['coordinates'] = (start.copy(), end.copy())
+        # Update metadata with new coordinates
+        start = [truncate_to_two_decimals(v) for v in start]
+        end = [truncate_to_two_decimals(v) for v in end]
+        metadata[room][wall_id]['coordinates'] = (start, end)
         metadata[room][wall_id]['wall_length'] = calculate_wall_length(start, end)
+
+        # Also update any adjacent walls that share modified points
         for wall_id2, data2 in metadata[room].items():
             if wall_id2 != wall_id:
                 s, e = data2['coordinates']
                 if s == original_start:
-                    s[:] = start
+                    s = start
                 elif s == original_end:
-                    s[:] = end
-                elif e == original_start:
-                    e[:] = start
+                    s = end
+                if e == original_start:
+                    e = start
                 elif e == original_end:
-                    e[:] = end
+                    e = end
                 metadata[room][wall_id2]['coordinates'] = (s.copy(), e.copy())
                 metadata[room][wall_id2]['wall_length'] = calculate_wall_length(s, e)
-                updated_rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
 
+    # 🔁 Update the global rooms dict
     rooms.clear()
-    for room in metadata:
-        rooms[room] = [data['coordinates'] for wall_id, data in metadata[room].items()]
+    rooms.update({room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()})
 
                
                 
@@ -858,7 +749,7 @@ def update_shifts_based_on_wall_availability(unshifted_room, shifted_room, direc
 
                     if all_free:
                         # Update wall length and shift all adjacent rooms
-                        update_wall_length_by_dimension3(room, direction, delta, metadata)
+                        update_wall_length_by_dimension3(room, direction, delta, metadata, rooms)
                         possible_shift = True
                         for adj_room in target_adj_rooms:
                             shift_room(adj_room, direction, delta, metadata, room)
@@ -930,6 +821,7 @@ def adjust_room_dimensions_to_meet_constraints(metadata, constraints, fixed_room
                 adjust_dimension(room, dimension, new_length, metadata, updated_rooms)
 
 def adjust_dimension(room, dimension, new_length, metadata, rooms):
+    rooms.clear()
     rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
     wall_type = 'vertical' if dimension == 'height' else 'horizontal'
     possible_directions = ['North', 'South'] if wall_type == 'vertical' else ['East', 'West']
@@ -2434,7 +2326,7 @@ def solving_overlap_problem(partial_overlaps, updated_room_data, rooms1, new_roo
     return Final_updated_rooms
 
 def update_wall_length_by_dimension_using_direction(room, dimension, delta, direction_to_use, metadata):
-    print(room)
+    rooms.clear()
     room_data = metadata.get(room, {})
     current_width, current_height = calculate_dimensions_from_metadata(room_data)
     if room in ['En suite Washroom', 'Common Washroom','Bathroom','Washroom']:
@@ -2471,70 +2363,21 @@ def update_wall_length_by_dimension_using_direction(room, dimension, delta, dire
                         update_wall_length_by_dimension3(room, direction_to_use, delta, metadata)
                         
 def apply_updates(update_instructions, metadata):
+    # Build rooms dict from metadata
+    rooms = {room: [data['coordinates'] for wall_id, data in walls.items()] for room, walls in metadata.items()}
+    
     for update in update_instructions:
         room = update['room_to_update']
-        room_data = metadata.get(room, {})
         direction = update['direction']
         delta = update['delta']
         dimension = update['dimension']
-        update_wall_length_by_dimension_using_direction(room, dimension, delta, direction, metadata)
-
+        
+        update_wall_length_by_dimension_using_direction(room, dimension, delta, direction, metadata, rooms)
 
 
 # Example usage, ensure the room details and adjustment_info are set correctly.
 
 import copy
-
-
-# def generate_wall_segments(
-#     rooms, new_room_name, length, width, existing_room,direction
-# ):
-    
-#     # Step 2: Preprocess
-#     rooms = replace_near_values(rooms, threshold=0.3)
-#     rooms_backup = copy.deepcopy(rooms)
-#     metadata = make_roomdata(rooms)
-
-#     # Step 3: Add new room
-#     updated_room_data = add_new_room(
-#         rooms, new_room_name, length, width, existing_room, direction, metadata
-#     )
-#     updated_room_data = replace_near_values(updated_room_data, threshold=0.3)
-#     metadata = make_roomdata(updated_room_data)
-
-#     # Step 4: Handle overlaps
-#     partial_overlaps = find_and_calculate_overlaps(updated_room_data)
-#     if partial_overlaps:
-#         final_rooms = solving_overlap_problem(
-#             partial_overlaps, updated_room_data, rooms_backup, new_room_name
-#         )
-#         metadata = make_roomdata(final_rooms)
-#         gap_results = find_all_gaps(final_rooms)
-#         update_instructions = create_update_dicts(
-#             gap_results, new_room_name=new_room_name, metadata=metadata
-#         )
-#         apply_updates(update_instructions, metadata)
-#     else:
-#         # Step 5: Handle broken connections
-#         broken_connections, broken_rooms = compare_floor_plans(
-#             rooms_backup, updated_room_data, new_room_name
-#         )
-#         final_broken_info = remove_duplicate_connections(broken_connections)
-#         final_broken_info = filter_broken_connections_due_to_new_room(
-#             final_broken_info, new_room_name, updated_room_data
-#         )
-#         shift_analysis_dict = make_shift_analysis_dict(
-#             final_broken_info.keys(), updated_room_data, rooms_backup
-#         )
-#         metadata = make_roomdata(updated_room_data)
-#         stichFloorplan(shift_analysis_dict, metadata, overlap=False)
-#         final_rooms = {
-#             room: [data['coordinates'] for wall_id, data in walls.items()]
-#             for room, walls in metadata.items()
-#         }
-
-#     # Step 6: Return wall segments
-#     return convert_all_rooms_to_walls(final_rooms)
 
 
  # assuming you already have this
@@ -2548,10 +2391,10 @@ def generate_updated_floorplan(
     direction: str
 ):
   
-
+    print("rooms",rooms)
     rooms = replace_near_values(rooms, threshold=0.3)
     original_rooms = copy.deepcopy(rooms)
-
+    print("working fun")
     metadata = make_roomdata(rooms)
     updated_rooms = add_new_room(
         rooms, new_room_name, length, width, existing_room, direction, metadata
@@ -2574,7 +2417,7 @@ def generate_updated_floorplan(
         apply_updates(update_instructions, metadata)
 
         final_rooms = {
-            room: [data['coordinates'] for wall_id, data in walls.items()]
+            room: [data['rooms'] for wall_id, data in walls.items()]
             for room, walls in metadata.items()
         }
 
@@ -2616,167 +2459,167 @@ def generate_updated_floorplan(
 
 
 
-# def main():
-#     global rooms, metadata
-#     rooms = {
+def main():
+    global rooms, metadata
+    rooms = {
       
-#       "Master Bedroom": [
-#         [
-#           [30, 30],
-#           [39.04, 30]
-#         ],
-#         [
-#           [39.04, 30],
-#           [39.04, 17.61]
-#         ],
-#         [
-#           [39.04, 17.61],
-#           [30, 17.61]
-#         ],
-#         [
-#           [30, 17.61],
-#           [30, 30]
-#         ]
-#       ],
-#       "En suite Washroom": [
-#         [
-#           [34.97, 36.99],
-#           [39.26, 36.99]
-#         ],
-#         [
-#           [39.26, 36.99],
-#           [39.26, 30.0]
-#         ],
-#         [
-#           [39.26, 30.0],
-#           [34.97, 30.0]
-#         ],
-#         [
-#           [34.97, 30.0],
-#           [34.97, 36.99]
-#         ]
-#       ],
+      "Master Bedroom": [
+        [
+          [30, 30],
+          [39.04, 30]
+        ],
+        [
+          [39.04, 30],
+          [39.04, 17.61]
+        ],
+        [
+          [39.04, 17.61],
+          [30, 17.61]
+        ],
+        [
+          [30, 17.61],
+          [30, 30]
+        ]
+      ],
+      "En suite Washroom": [
+        [
+          [34.97, 36.99],
+          [39.26, 36.99]
+        ],
+        [
+          [39.26, 36.99],
+          [39.26, 30.0]
+        ],
+        [
+          [39.26, 30.0],
+          [34.97, 30.0]
+        ],
+        [
+          [34.97, 30.0],
+          [34.97, 36.99]
+        ]
+      ],
    
-#       "Kitchen": [
-#         [
-#           [39.04, 25.07],
-#           [45.9, 25.07]
-#         ],
-#         [
-#           [45.9, 25.07],
-#           [45.9, 16.68]
-#         ],
-#         [
-#           [45.9, 16.68],
-#           [39.04, 16.68]
-#         ],
-#         [
-#           [39.04, 16.68],
-#           [39.04, 25.07]
-#         ]
-#       ],
-#       "Common Washroom": [
-#         [
-#           [39.26, 34.52],
-#           [45.9, 34.52]
-#         ],
-#         [
-#           [45.9, 34.52],
-#           [45.9, 30.0]
-#         ],
-#         [
-#           [45.9, 30.0],
-#           [39.26, 30.0]
-#         ],
-#         [
-#           [39.26, 30.0],
-#           [39.26, 34.52]
-#         ]
-#       ],
-#       "Living Room": [
-#   [[45.9, 34.52], [54.98, 34.52]],
-#   [[54.98, 34.52], [54.98, 27]],    
-#   [[54.98, 27], [50.5, 27]],          
-#   [[50.5, 27], [50.5, 19.47]],        
-#   [[45.9, 19.47], [45.9, 34.52]]
-# ],
-#       "Passage": [
-#         [
-#           [39.04, 30],
-#           [45.9, 30]
-#         ],
-#         [
-#           [45.9, 30],
-#           [45.9, 25.07]
-#         ],
-#         [
-#           [45.9, 25.07],
-#           [39.04, 25.07]
-#         ],
-#         [
-#           [39.04, 25.07],
-#           [39.04, 30]
-#         ]
-#       ]
+      "Kitchen": [
+        [
+          [39.04, 25.07],
+          [45.9, 25.07]
+        ],
+        [
+          [45.9, 25.07],
+          [45.9, 16.68]
+        ],
+        [
+          [45.9, 16.68],
+          [39.04, 16.68]
+        ],
+        [
+          [39.04, 16.68],
+          [39.04, 25.07]
+        ]
+      ],
+      "Common Washroom": [
+        [
+          [39.26, 34.52],
+          [45.9, 34.52]
+        ],
+        [
+          [45.9, 34.52],
+          [45.9, 30.0]
+        ],
+        [
+          [45.9, 30.0],
+          [39.26, 30.0]
+        ],
+        [
+          [39.26, 30.0],
+          [39.26, 34.52]
+        ]
+      ],
+      "Living Room": [
+  [[45.9, 34.52], [54.98, 34.52]],
+  [[54.98, 34.52], [54.98, 27]],    
+  [[54.98, 27], [50.5, 27]],          
+  [[50.5, 27], [50.5, 19.47]],        
+  [[45.9, 19.47], [45.9, 34.52]]
+],
+      "Passage": [
+        [
+          [39.04, 30],
+          [45.9, 30]
+        ],
+        [
+          [45.9, 30],
+          [45.9, 25.07]
+        ],
+        [
+          [45.9, 25.07],
+          [39.04, 25.07]
+        ],
+        [
+          [39.04, 25.07],
+          [39.04, 30]
+        ]
+      ]
+    }
+
+
+# {
+# 'Master Bedroom': [[[30, 30], [39.04, 30]],
+#   [[39.04, 30], [39.04, 17.61]],
+#   [[39.04, 17.61], [30, 17.61]],
+#   [[30, 17.61], [30, 30]]],
+# 'En suite Washroom': [[[34.97, 36.99], [39.26, 36.99]],
+#   [[39.26, 36.99], [39.26, 30.0]],
+#   [[39.26, 30.0], [34.97, 30.0]],
+#   [[34.97, 30.0], [34.97, 36.99]]],
+# 'Kitchen': [[[39.04, 25.07], [45.9, 25.07]],
+#   [[45.9, 25.07], [45.9, 16.68]],
+#   [[45.9, 16.68], [39.04, 16.68]],
+#   [[39.04, 16.68], [39.04, 25.07]]],
+# 'Common Washroom': [[[39.26, 34.52], [45.9, 34.52]],
+#   [[45.9, 34.52], [45.9, 30.0]],
+#   [[45.9, 30.0], [39.26, 30.0]],
+#   [[39.26, 30.0], [39.26, 34.52]]],
+# 'Living Room': [[[45.9, 34.52], [54.98, 34.52]],
+#   [[54.98, 34.52], [54.98, 19.47]],
+#   [[54.98, 19.47], [45.9, 19.47]],
+#   [[45.9, 19.47], [45.9, 34.52]]],
+# 'Passage': [[[39.04, 30], [45.9, 30]],
+#   [[45.9, 30], [45.9, 25.07]],
+#   [[45.9, 25.07], [39.04, 25.07]],
+#   [[39.04, 25.07], [39.04, 30]]]
 #     }
-
-
-# # {
-# # 'Master Bedroom': [[[30, 30], [39.04, 30]],
-# #   [[39.04, 30], [39.04, 17.61]],
-# #   [[39.04, 17.61], [30, 17.61]],
-# #   [[30, 17.61], [30, 30]]],
-# # 'En suite Washroom': [[[34.97, 36.99], [39.26, 36.99]],
-# #   [[39.26, 36.99], [39.26, 30.0]],
-# #   [[39.26, 30.0], [34.97, 30.0]],
-# #   [[34.97, 30.0], [34.97, 36.99]]],
-# # 'Kitchen': [[[39.04, 25.07], [45.9, 25.07]],
-# #   [[45.9, 25.07], [45.9, 16.68]],
-# #   [[45.9, 16.68], [39.04, 16.68]],
-# #   [[39.04, 16.68], [39.04, 25.07]]],
-# # 'Common Washroom': [[[39.26, 34.52], [45.9, 34.52]],
-# #   [[45.9, 34.52], [45.9, 30.0]],
-# #   [[45.9, 30.0], [39.26, 30.0]],
-# #   [[39.26, 30.0], [39.26, 34.52]]],
-# # 'Living Room': [[[45.9, 34.52], [54.98, 34.52]],
-# #   [[54.98, 34.52], [54.98, 19.47]],
-# #   [[54.98, 19.47], [45.9, 19.47]],
-# #   [[45.9, 19.47], [45.9, 34.52]]],
-# # 'Passage': [[[39.04, 30], [45.9, 30]],
-# #   [[45.9, 30], [45.9, 25.07]],
-# #   [[45.9, 25.07], [39.04, 25.07]],
-# #   [[39.04, 25.07], [39.04, 30]]]
-# #     }
  
-#     plot_floor_plan(rooms=rooms,title="Floor Plan")
-#     new_room_name = "Study"
-#     length = 5
-#     width = 7
-#     existing_room = "Living Room"
-#     direction = "Left"
+    plot_floor_plan(rooms=rooms,title="Floor Plan")
+    new_room_name = "Study"
+    length = 5
+    width = 7
+    existing_room = "Living Room"
+    direction = "Left"
 
-#     # Call the processing function
-#     result = generate_updated_floorplan(
-#         rooms=rooms,
-#         new_room_name=new_room_name,
-#         length=length,
-#         width=width,
-#         existing_room=existing_room,
-#         direction=direction
-#     )
+    # Call the processing function
+    result = generate_updated_floorplan(
+        rooms=rooms,
+        new_room_name=new_room_name,
+        length=length,
+        width=width,
+        existing_room=existing_room,
+        direction=direction
+    )
 
-#     # Print or visualize result
-#     print("Updated Room Data:")
-#     for room, walls in result["updated_rooms"].items():
-#         print(room, ":", walls)
+    # Print or visualize result
+    print("Updated Room Data:")
+    for room, walls in result["updated_rooms"].items():
+        print(room, ":", walls)
 
-#     print("\nConverted Wall Segments:")
-#     for wall in result["converted_walls"]:
-#         print(wall)
+    print("\nConverted Wall Segments:")
+    for wall in result["converted_walls"]:
+        print(wall)
 
-#     # Optional: visualize final result
-#     plot_floor_plan(result["updated_rooms"], title="Final Floor Plan")
+    # Optional: visualize final result
+    plot_floor_plan(result["updated_rooms"], title="Final Floor Plan")
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()

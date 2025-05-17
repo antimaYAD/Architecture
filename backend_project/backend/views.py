@@ -111,6 +111,7 @@ def add_new_room_func(request):
         roomWidth = data.get('roomWidth')
         roomHeight = data.get('roomHeight')
         rooms = data.get('rooms')  # ✅ renamed to 'rooms' for consistency
+        print("Rooms_ Cord :", rooms)
 
         # Field validation
         required_fields = {
@@ -128,6 +129,7 @@ def add_new_room_func(request):
                 return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Call backend floorplan function
+        print("working")
         result = generate_updated_floorplan(
             rooms=rooms,
             new_room_name=roomName,
